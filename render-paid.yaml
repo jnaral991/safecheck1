@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: safecheck
+    runtime: docker
+    plan: standard
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: VT_API_KEY
+        sync: false
+    disk:
+      name: scans
+      mountPath: /data
+      sizeGB: 50

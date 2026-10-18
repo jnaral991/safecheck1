@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SafeCheck – scan any file or link</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+:root{--bg:#0a1630;--ink:#e8efff;--mute:#9fb2da;--card:#101f40;--line:#223a6b;--accent:#4da3ff;--on:#04122b;--bad:#ff6b6b;--warn:#f5b94a;--ok:#3fe0a0;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "IBM Plex Sans",system-ui,sans-serif}
+main{max-width:720px;margin:0 auto;padding:56px 20px 80px}
+h1{font:800 clamp(2.2rem,7vw,3.4rem)/1.05 "Bricolage Grotesque",sans-serif;margin:0 0 12px;letter-spacing:-.02em}
+.lead{color:var(--mute);margin:0 0 32px;max-width:48ch}
+.tabs{display:flex;gap:4px;margin-bottom:-1px}
+.tabs button{font:inherit;font-weight:500;padding:10px 20px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;background:transparent;color:var(--mute);cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--card);color:var(--ink)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:0 12px 12px 12px;padding:24px}
+.drop{display:block;border:2px dashed var(--line);border-radius:10px;padding:44px 16px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.drop:hover,.drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent)}
+.drop strong{display:block;font:600 1.15rem "Bricolage Grotesque",sans-serif}
+.drop span{color:var(--mute);font-size:.92rem}
+input[type=file]{position:absolute;opacity:0;width:1px;height:1px}
+input[type=url]{width:100%;font:inherit;padding:14px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.go{margin-top:14px;font:600 1rem "IBM Plex Sans";background:var(--accent);color:var(--on);border:0;border-radius:8px;padding:12px 22px;cursor:pointer}
+.go:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#out{margin-top:28px}
+.bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:10px 0}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.verdict{border-left:8px solid var(--ok);background:var(--card);border-radius:10px;padding:20px 22px;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.verdict.bad{border-left-color:var(--bad)}.verdict.warn{border-left-color:var(--warn)}
+.verdict h2{font:800 1.7rem "Bricolage Grotesque",sans-serif;margin:0 0 4px}
+.verdict.bad h2{color:var(--bad)}.verdict.warn h2{color:var(--warn)}.verdict.ok h2{color:var(--ok)}
+.nums{display:flex;gap:24px;flex-wrap:wrap;margin:14px 0 0;padding:0;list-style:none}
+.nums b{font:800 1.5rem "Bricolage Grotesque",sans-serif;display:block}
+.nums span{color:var(--mute);font-size:.85rem}
+table{width:100%;border-collapse:collapse;margin-top:16px;font-size:.92rem}
+td,th{text-align:left;padding:8px 6px;border-top:1px solid var(--line)}
+a{color:var(--accent)}
+.list{margin-top:16px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+.row{display:flex;justify-content:space-between;gap:12px;padding:9px 14px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row span:last-child{text-align:right;font-weight:500}
+.row.ok span:last-child{color:var(--ok)}.row.na span:last-child{color:var(--mute)}
+.row.bad{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad);font-weight:600}
+.row.warn{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn);font-weight:600}
+.banner{margin:0 0 4px;font-weight:500}
+.err{color:var(--bad);font-weight:500}
+.note{color:var(--mute);font-size:.85rem;margin-top:36px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Is it safe to open?</h1>
+  <p class="lead">Check a file or a link against more than 70 antivirus engines before you open it.</p>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" id="t-file" aria-selected="true">File</button>
+    <button role="tab" id="t-url" aria-selected="false">Link</button>
+  </div>
+  <div class="panel">
+    <div id="p-file">
+      <label class="drop" id="drop">
+        <input type="file" id="file">
+        <strong id="fname">Drop a file here or click to choose</strong>
+        <span>Any file type and any size</span>
+      </label>
+      <button class="go" id="goFile" disabled>Scan file</button>
+    </div>
+    <div id="p-url" hidden>
+      <label for="url" class="sr" style="display:block;margin-bottom:8px">Link to check</label>
+      <input type="url" id="url" placeholder="https://example.com/download">
+      <button class="go" id="goUrl">Scan link</button>
+    </div>
+  </div>
+
+  <div id="out" aria-live="polite"></div>
+  <p class="note">Files and links are checked by VirusTotal. Uploaded files are deleted from this site right after the scan. Files over 650 MB are never uploaded: only their fingerprint is checked. A clean result lowers risk but can’t guarantee safety.</p>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let chosen = null, busy = false;
+
+function tab(which){
+  const f = which === 'file';
+  $('t-file').setAttribute('aria-selected', f); $('t-url').setAttribute('aria-selected', !f);
+  $('p-file').hidden = !f; $('p-url').hidden = f; $('out').innerHTML = '';
+}
+$('t-file').onclick = () => tab('file'); $('t-url').onclick = () => tab('url');
+
+function pick(f){ chosen = f; $('fname').textContent = f ? `${f.name} (${(f.size/1048576).toFixed(1)} MB)` : 'Drop a file here or click to choose'; $('goFile').disabled = !f; }
+$('file').onchange = e => pick(e.target.files[0]);
+const drop = $('drop');
+['dragenter','dragover'].forEach(n => drop.addEventListener(n, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(n => drop.addEventListener(n, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => pick(e.dataTransfer.files[0]));
+
+function show(html){ $('out').innerHTML = html; }
+function status(msg, pct){ show(`<div>${msg}</div><div class="bar"><i style="width:${pct}%"></i></div>`); }
+function error(msg){ const p = document.createElement('p'); p.className = 'err'; p.textContent = msg; $('out').replaceChildren(p); }
+function lock(v){ busy = v; $('goFile').disabled = v || !chosen; $('goUrl').disabled = v; }
+
+const CHUNK=32*1024*1024, sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const fmt=n=>n>=1e9?(n/1e9).toFixed(2)+' GB':(n/1e6).toFixed(0)+' MB';
+async function api(url,opts){const r=await fetch(url,opts);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Request failed');return j}
+
+async function scanChosen(file){
+  const cfg=await api('/api/config');
+  if(!cfg.local&&file.size>650*1024*1024)return lookupBig(file);
+  const {id}=await api('/api/upload/start',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({size:file.size})});
+  let idx=0;
+  for(let off=0;off<file.size;off+=CHUNK){
+    const blob=file.slice(off,off+CHUNK);
+    for(let t=0;;t++){try{await api(`/api/upload/${id}/${idx}`,{method:'PUT',body:blob});break}catch(e){if(t>=3)throw e;await sleep(1500)}}
+    idx++;const done=Math.min(file.size,off+CHUNK);
+    status(`Uploading… ${fmt(done)} of ${fmt(file.size)}`,done/file.size*80);
+  }
+  await api(`/api/upload/${id}/finish`,{method:'POST'});
+  let job;
+  for(;;){
+    job=await api('/api/job/'+id);
+    if(job.status!=='scanning')break;
+    status('Scanning for viruses…',90);await sleep(3000);
+  }
+  if(job.status==='error')throw new Error(job.error);
+  let j;
+  if(job.vtId){try{j=await poll(job.vtId)}catch(e){if(!job.clam)throw e}}
+  if(!j)j={status:'completed',stats:{malicious:0,suspicious:0,harmless:0,undetected:0},engines:[],kind:'file',report:null};
+  if(job.clam){j.engines.unshift({engine:'ClamAV (this site’s own scanner)',category:job.clam.infected?'malicious':'harmless',result:job.clam.name});j.stats[job.clam.infected?'malicious':'harmless']++}
+  return {result:j};
+}
+
+async function poll(id){
+  for (let i = 0; i < 60; i++){
+    const r = await fetch('/api/analysis/' + id); const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    if (j.status === 'completed') return j;
+    status('Scanning with 70+ engines…', Math.min(95, 30 + i * 3));
+    await new Promise(r => setTimeout(r, 4000));
+  }
+  throw new Error('The scan is taking too long. Try again in a few minutes.');
+}
+
+function label(e,kind){
+  const c=e.category;
+  if(c==='malicious') return ['bad', kind==='file'?'VIRUS FOUND':'MALICIOUS'];
+  if(c==='suspicious') return ['warn','SUSPICIOUS'];
+  if(c==='harmless') return ['ok','Clean'];
+  if(c==='undetected') return kind==='file' ? ['ok','Clean'] : ['na','Unrated'];
+  return ['na','Unrated'];
+}
+function render(j){
+  const s=j.stats, bad=s.malicious, sus=s.suspicious, kind=j.kind;
+  const cls = bad ? 'bad' : sus ? 'warn' : 'ok';
+  const title = bad ? `VIRUS FOUND: ${bad} engine${bad>1?'s':''} flagged this ${kind==='file'?'file':'link'}` : sus ? 'Suspicious. Be careful.' : `Clean: no virus found`;
+  const sub = bad ? 'Do not open it.' : sus ? `${sus} engine${sus>1?'s':''} found something suspicious.` : `All ${j.engines.length} engines checked it and none flagged it.`;
+  const el=document.createElement('div'); el.className='verdict '+cls;
+  el.innerHTML='<h2></h2><div class="banner"></div><ul class="nums"><li><b>'+bad+'</b><span>Malicious</span></li><li><b>'+sus+'</b><span>Suspicious</span></li><li><b>'+(s.harmless+(kind==='file'?s.undetected:0))+'</b><span>Clean</span></li><li><b>'+(kind==='file'?0:s.undetected)+'</b><span>Unrated</span></li></ul>';
+  el.querySelector('h2').textContent=title; el.querySelector('.banner').textContent=sub;
+  const order={bad:0,warn:1,ok:2,na:3};
+  const rows=j.engines.map(e=>({e,l:label(e,kind)})).sort((x,y)=>order[x.l[0]]-order[y.l[0]]||x.e.engine.localeCompare(y.e.engine,undefined,{sensitivity:'base'}));
+  const list=document.createElement('div'); list.className='list';
+  rows.forEach(({e,l})=>{
+    const r=document.createElement('div'); r.className='row '+l[0];
+    const a=document.createElement('span'); a.textContent=e.engine;
+    const b=document.createElement('span'); b.textContent = (l[0]==='bad'||l[0]==='warn') && e.result ? l[1]+': '+e.result : l[1];
+    r.append(a,b); list.append(r);
+  });
+  el.append(list);
+  if(j.report){const p=document.createElement('p');const a=document.createElement('a');a.href=j.report;a.target='_blank';a.rel='noopener';a.textContent='Full report on VirusTotal';p.append(a);el.append(p)}
+  $('out').replaceChildren(el);
+}
+
+const K=new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+class Sha256{
+  constructor(){this.h=new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]);this.buf=new Uint8Array(64);this.n=0;this.len=0;this.w=new Uint32Array(64)}
+  block(b,o){const w=this.w,h=this.h;
+    for(let t=0;t<16;t++){const j=o+t*4;w[t]=(b[j]<<24)|(b[j+1]<<16)|(b[j+2]<<8)|b[j+3]}
+    for(let t=16;t<64;t++){const a=w[t-15],c=w[t-2];const s0=((a>>>7)|(a<<25))^((a>>>18)|(a<<14))^(a>>>3);const s1=((c>>>17)|(c<<15))^((c>>>19)|(c<<13))^(c>>>10);w[t]=(w[t-16]+s0+w[t-7]+s1)|0}
+    let A=h[0],B=h[1],C=h[2],D=h[3],E=h[4],F=h[5],G=h[6],H=h[7];
+    for(let t=0;t<64;t++){
+      const S1=((E>>>6)|(E<<26))^((E>>>11)|(E<<21))^((E>>>25)|(E<<7));const ch=(E&F)^(~E&G);const t1=(H+S1+ch+K[t]+w[t])|0;
+      const S0=((A>>>2)|(A<<30))^((A>>>13)|(A<<19))^((A>>>22)|(A<<10));const mj=(A&B)^(A&C)^(B&C);const t2=(S0+mj)|0;
+      H=G;G=F;F=E;E=(D+t1)|0;D=C;C=B;B=A;A=(t1+t2)|0}
+    h[0]+=A;h[1]+=B;h[2]+=C;h[3]+=D;h[4]+=E;h[5]+=F;h[6]+=G;h[7]+=H}
+  update(d){let i=0;this.len+=d.length;
+    if(this.n){while(i<d.length&&this.n<64)this.buf[this.n++]=d[i++];if(this.n===64){this.block(this.buf,0);this.n=0}}
+    for(;i+64<=d.length;i+=64)this.block(d,i);
+    while(i<d.length)this.buf[this.n++]=d[i++]}
+  hex(){const bits=this.len*8;const L=(this.n<56?64:128)-this.n;const p=new Uint8Array(L);p[0]=0x80;
+    const dv=new DataView(p.buffer);dv.setUint32(L-8,Math.floor(bits/4294967296));dv.setUint32(L-4,bits>>>0);
+    this.update(p);return[...this.h].map(x=>(x>>>0).toString(16).padStart(8,'0')).join('')}
+}
+
+async function lookupBig(f){
+  const sh=new Sha256(),CH=16*1024*1024;let off=0;
+  while(off<f.size){sh.update(new Uint8Array(await f.slice(off,off+CH).arrayBuffer()));off+=CH;
+    status(`Big file: reading it on your device… ${Math.min(100,Math.round(off/f.size*100))}%`,Math.min(100,off/f.size*100));await sleep(0)}
+  status('Asking VirusTotal about this file…',95);
+  return {result:await api('/api/lookup/'+sh.hex())};
+}
+
+async function run(start){
+  if (busy) return; lock(true);
+  try { status('Starting…', 5); const r = await start(); if (r.result) render(r.result); else { status('Scanning with 70+ engines…', 30); render(await poll(r.id)); } }
+  catch (e) { error(e.message); }
+  finally { lock(false); }
+}
+$('goFile').onclick = () => run(() => scanChosen(chosen));
+$('goUrl').onclick = () => run(async () => {
+  const r = await fetch('/api/scan-url', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ url: $('url').value }) });
+  const j = await r.json(); if (!r.ok) throw new Error(j.error); return j;
+});
+</script>
+</body>
+</html>
